@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лаборатория Эйлера</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Классная интерактивная доска: светлая «тетрадная» основа, два узнаваемых цвета множеств A и B, маркерная подсветка результата операции.
+   Раскладка: шапка с таймером → вкладки-станции урока → рабочее поле станции (диаграмма слева, управление справа). */
+:root{
+  --paper:#EEF2F8;
+  --surface:#FFFFFF;
+  --ink:#172036;
+  --muted:#58627C;
+  --line:#D5DCE8;
+  --a:#2563D9;
+  --b:#E26A1B;
+  --c:#178F62;
+  --hl:#FFC530;
+  --ok:#16884A;
+  --bad:#CC3340;
+  --font-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --font-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1420; --surface:#171E2E; --ink:#E7ECF6; --muted:#9AA4BE; --line:#2B354A;
+    --a:#6E9DFF; --b:#FF9550; --c:#3FCB8F; --hl:#E6B020; --ok:#40C47A; --bad:#FF6B76;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1420; --surface:#171E2E; --ink:#E7ECF6; --muted:#9AA4BE; --line:#2B354A;
+  --a:#6E9DFF; --b:#FF9550; --c:#3FCB8F; --hl:#E6B020; --ok:#40C47A; --bad:#FF6B76;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+header.top{background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding-top:14px;padding-bottom:14px}
+.brand{display:flex;align-items:center;gap:12px;flex:1 1 320px;min-width:0}
+.logo{width:46px;height:34px;flex:none}
+.brand h1{font-family:var(--font-display);font-weight:700;font-size:20px;margin:0;letter-spacing:-.01em}
+.brand p{margin:0;color:var(--muted);font-size:14px}
+.timer{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.timer .lbl{font-size:13px;color:var(--muted);margin-right:2px}
+.timer button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 11px;font-size:14px;cursor:pointer}
+.timer button:hover{border-color:var(--ink)}
+.clock{font-family:var(--font-display);font-size:20px;font-variant-numeric:tabular-nums;min-width:74px;text-align:center;padding:3px 10px;border-radius:10px;background:var(--paper)}
+.clock.run{background:var(--ink);color:var(--surface)}
+.clock.done{background:var(--bad);color:#fff;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion: reduce){.clock.done{animation:none}}
+
+nav.tabs{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line)}
+nav.tabs .wrap{display:flex;gap:6px;overflow-x:auto;padding-top:10px;padding-bottom:10px}
+nav.tabs button{flex:none;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
+nav.tabs button .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--paper);font-size:12px;font-weight:700}
+nav.tabs button .mode{font-size:12px;color:var(--muted);font-weight:400}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+nav.tabs button[aria-selected="true"] .n{background:var(--hl);color:#172036}
+nav.tabs button[aria-selected="true"] .mode{color:inherit;opacity:.75}
+
+main{padding:22px 0 48px}
+section.station{display:none}
+section.station.on{display:block}
+.st-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px;margin-bottom:16px}
+.st-head h2{font-family:var(--font-display);font-weight:700;font-size:26px;line-height:1.2;margin:0;text-wrap:balance}
+.st-head p{margin:6px 0 0;color:var(--muted);max-width:68ch}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);white-space:nowrap}
+.chip b{font-weight:600}
+.chip.pair{border-color:var(--a);color:var(--a)}
+.chip.group{border-color:var(--c);color:var(--c)}
+.chip.front{border-color:var(--b);color:var(--b)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.panel h3{font-size:15px;margin:0 0 10px;font-weight:700;letter-spacing:.01em}
+.panel + .panel{margin-top:14px}
+.stack{display:flex;flex-direction:column;gap:14px}
+
+.board{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.board canvas{display:block;width:100%;touch-action:none;border-radius:8px}
+.board .hint{font-size:13px;color:var(--muted);margin:8px 4px 0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:10px 4px 0;font-size:14px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:50%;border:3px solid currentColor;display:inline-block}
+.sw.a{color:var(--a)} .sw.b{color:var(--b)} .sw.c{color:var(--c)}
+.sw.hl{background:var(--hl);border-color:var(--hl);border-radius:4px}
+
+.ops{display:flex;flex-wrap:wrap;gap:6px}
+.ops button{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:7px 12px;cursor:pointer;font-size:16px;font-weight:600;min-width:52px}
+.ops button:hover{border-color:var(--ink)}
+.ops button[aria-pressed="true"]{background:var(--hl);border-color:var(--hl);color:#172036}
+.ov{text-decoration:overline;text-decoration-thickness:2px}
+.big-sym{font-family:var(--font-display);font-size:30px;font-weight:700;margin:2px 0 4px}
+.desc{color:var(--muted);margin:0;font-size:15px}
+.sets{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;font-size:15px;font-variant-numeric:tabular-nums}
+.sets dt{font-weight:700;white-space:nowrap}
+.sets dd{margin:0;word-break:break-word}
+.sets .res{background:color-mix(in srgb,var(--hl) 35%,transparent);border-radius:6px;padding:0 6px}
+.relation{display:inline-block;margin-top:10px;font-weight:600;padding:5px 10px;border-radius:8px;background:var(--paper)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--a)}
+
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--surface);border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+
+.challenges{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.challenges li{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start;padding:9px 10px;border-radius:10px;background:var(--paper);font-size:15px}
+.challenges .mk{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--muted)}
+.challenges li.done{background:color-mix(in srgb,var(--ok) 14%,var(--surface))}
+.challenges li.done .mk{background:var(--ok);border-color:var(--ok);color:#fff}
+.challenges small{display:block;color:var(--muted);font-size:13px}
+
+/* survey */
+.survey-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sbtn{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--paper)}
+.sbtn .t{font-weight:600;font-size:14px;line-height:1.25}
+.sbtn .ctrl{display:flex;align-items:center;gap:6px}
+.sbtn button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:700;font-size:18px;line-height:1}
+.sbtn button.plus{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.sbtn .v{font-family:var(--font-display);min-width:26px;text-align:center;font-variant-numeric:tabular-nums}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.field input,.field select{border:1px solid var(--line);border-radius:9px;padding:7px 10px;background:var(--surface);font-size:15px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.stat{background:var(--paper);border-radius:10px;padding:8px 10px}
+.stat .k{font-size:13px;color:var(--muted)}
+.stat .val{font-family:var(--font-display);font-size:22px;font-variant-numeric:tabular-nums}
+.reveal{margin-top:10px;padding:12px;border-radius:10px;border:1px dashed var(--a);background:color-mix(in srgb,var(--a) 7%,var(--surface))}
+.reveal[hidden]{display:none}
+.formula{font-family:var(--font-display);font-size:18px;margin:4px 0}
+
+/* sort */
+.tabs-mini{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tabs-mini button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:500}
+.tabs-mini button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.stage{position:relative}
+.drop-layer{position:absolute;inset:0;pointer-events:none}
+.tray{display:flex;flex-wrap:wrap;gap:8px;min-height:56px;padding:10px;border:2px dashed var(--line);border-radius:12px;margin-top:10px}
+.tray:empty::after{content:"Все карточки разложены. Нажмите «Проверить раскладку».";color:var(--muted);font-size:14px;align-self:center}
+.card{pointer-events:auto;user-select:none;-webkit-user-select:none;touch-action:none;cursor:grab;background:var(--surface);border:1.5px solid var(--ink);border-radius:10px;padding:6px 10px;font-size:14px;line-height:1.25;box-shadow:0 1px 0 var(--line);max-width:220px}
+.card .nm{font-weight:600;display:block}
+.card .sub{display:block;font-size:12px;color:var(--muted)}
+.card.placed{position:absolute;transform:translate(-50%,-50%);padding:3px 8px;font-size:13px;white-space:nowrap}
+.card.placed .sub{display:none}
+.card.dragging{position:fixed;z-index:50;cursor:grabbing;box-shadow:0 8px 24px rgba(0,0,0,.25);transform:translate(-50%,-50%)}
+.card.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,var(--surface))}
+.card.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 16%,var(--surface))}
+.qlist{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.qlist li{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;font-size:15px}
+.qlist input{width:70px;border:1px solid var(--line);border-radius:9px;padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums;background:var(--surface)}
+.qlist input.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,var(--surface))}
+.qlist input.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--surface))}
+.verdict{font-weight:600;margin-top:10px;min-height:1.5em}
+.verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
+
+/* case */
+.case-text{font-size:18px;line-height:1.55;margin:0}
+.case-text b{font-variant-numeric:tabular-nums}
+.region-in{position:absolute;transform:translate(-50%,-50%);width:64px;border:2px solid var(--ink);border-radius:10px;padding:6px 4px;text-align:center;font-family:var(--font-display);font-size:18px;background:var(--surface);font-variant-numeric:tabular-nums}
+.region-in.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,var(--surface))}
+.region-in.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 16%,var(--surface))}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.role{background:var(--paper);border-radius:10px;padding:8px 10px;font-size:14px}
+.role b{display:block}
+
+/* props */
+.duo{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.duo .eq{font-family:var(--font-display);font-size:34px;color:var(--muted)}
+@media (max-width:640px){.duo{grid-template-columns:1fr}.duo .eq{text-align:center}}
+.side{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.side .cap{font-family:var(--font-display);font-size:17px;text-align:center;margin:4px 0 8px;min-height:1.6em}
+.side .step{font-size:13px;color:var(--muted);text-align:center;margin-top:6px;min-height:1.4em}
+.side canvas{width:100%;display:block}
+
+/* quiz */
+.quiz{display:flex;flex-direction:column;gap:10px;list-style:none;margin:0;padding:0}
+.quiz li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}
+.quiz .st{font-size:17px;font-variant-numeric:tabular-nums}
+.quiz .yn{display:flex;gap:6px}
+.quiz .yn button{border:1px solid var(--line);background:var(--paper);border-radius:9px;padding:6px 12px;cursor:pointer;font-weight:600}
+.quiz .fb{grid-column:1/-1;font-size:14px;color:var(--muted);display:none}
+.quiz li.answered .fb{display:block}
+.quiz li.right{border-color:var(--ok)}
+.quiz li.right .fb::before{content:"Верно. ";color:var(--ok);font-weight:700}
+.quiz li.wrong{border-color:var(--bad)}
+.quiz li.wrong .fb::before{content:"Не совсем. ";color:var(--bad);font-weight:700}
+.light{display:flex;gap:8px;flex-wrap:wrap}
+.light button{flex:1 1 150px;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px;cursor:pointer;text-align:left;font-size:14px}
+.light button b{display:block;font-size:15px}
+.light button[aria-pressed="true"]{border-color:var(--ink);background:var(--paper)}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+.plan{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:18px}
+.plan .p{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px}
+.plan .p b{display:block;font-size:15px}
+.plan .p .m{color:var(--muted)}
+.plan .p.demo{border:2px solid var(--hl)}
+.demo-tag{display:inline-block;font-size:12px;font-weight:700;background:var(--hl);color:#172036;border-radius:6px;padding:1px 7px;margin-top:6px}
+footer{color:var(--muted);font-size:13px;padding:0 0 30px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 46 34" aria-hidden="true"><circle cx="16" cy="17" r="13" fill="none" stroke="var(--a)" stroke-width="3.5"/><circle cx="30" cy="17" r="13" fill="none" stroke="var(--b)" stroke-width="3.5"/><path d="M23 6.1a13 13 0 0 1 0 21.8a13 13 0 0 1 0-21.8z" fill="var(--hl)"/></svg>
+      <div>
+        <h1>Лаборатория Эйлера</h1>
+        <p>Операции над множествами и диаграммы Эйлера · Вероятность и статистика, 8 класс, § 25</p>
+      </div>
+    </div>
+    <div class="timer" aria-label="Таймер для работы в парах и группах">
+      <span class="lbl">Таймер</span>
+      <button type="button" data-min="2">2 мин</button>
+      <button type="button" data-min="3">3 мин</button>
+      <button type="button" data-min="5">5 мин</button>
+      <span class="clock" id="clock" role="timer" aria-live="polite">0:00</span>
+      <button type="button" id="timerStop">Сброс</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Станции урока">
+  <div class="wrap" role="tablist">
+    <button role="tab" data-tab="opros"><span class="n">1</span>Опрос класса</button>
+    <button role="tab" data-tab="lab"><span class="n">2</span>Лаборатория</button>
+    <button role="tab" data-tab="sort"><span class="n">3</span>Разложи по кругам</button>
+    <button role="tab" data-tab="case"><span class="n">4</span>Расследование</button>
+    <button role="tab" data-tab="props"><span class="n">5</span>Свойства операций</button>
+    <button role="tab" data-tab="quiz"><span class="n">6</span>Проверь себя</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- 1. ОПРОС -->
+<section class="station" id="st-opros" role="tabpanel">
+  <div class="st-head">
+    <div>
+      <h2>Сколько нас в кругах?</h2>
+      <p>Учитель задаёт классу два вопроса. Каждый ученик относит себя к одной из четырёх областей, а учитель нажимает «+». Потом класс пытается ответить: сколько человек ходит хотя бы куда-нибудь?</p>
+    </div>
+    <div class="chips"><span class="chip front"><b>Весь класс</b> · 3 мин</span></div>
+  </div>
+  <div class="grid">
+    <div class="board">
+      <canvas id="cvOpros" aria-label="Диаграмма Эйлера с результатами опроса класса"></canvas>
+      <div class="legend"><span><i class="sw a"></i><span id="lgA">A</span></span><span><i class="sw b"></i><span id="lgB">B</span></span></div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h3>Вопросы опроса</h3>
+        <div class="stack" style="gap:8px">
+          <label class="field">Множество A<input id="inA" value="Хожу в спортивную секцию"></label>
+          <label class="field">Множество B<input id="inB" value="Занимаюсь музыкой или рисованием"></label>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Подсчёт голосов</h3>
+        <div class="survey-btns" id="surveyBtns"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost" type="button" id="svExample">Пример: 8 «Б»</button>
+          <button class="btn ghost" type="button" id="svReset">Обнулить</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Что получилось</h3>
+        <div class="stats" id="svStats"></div>
+        <button class="btn" type="button" id="svReveal" style="margin-top:10px">Почему нельзя просто сложить?</button>
+        <div class="reveal" id="svRevealBox" hidden>
+          <div id="svRevealText"></div>
+          <div class="formula">n(A ∪ B) = n(A) + n(B) − n(A ∩ B)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="plan" aria-label="Как страница работает на уроке">
+    <div class="p"><b>1. Мотивация</b><span class="m">Опрос класса · 3 мин · весь класс</span></div>
+    <div class="p demo"><b>2. Открытие нового знания</b><span class="m">Лаборатория · 9 мин · пары</span><br><span class="demo-tag">фрагмент для демоэкзамена</span></div>
+    <div class="p demo"><b>3. Первичное закрепление</b><span class="m">Разложи по кругам · 6 мин · пары</span><br><span class="demo-tag">фрагмент для демоэкзамена</span></div>
+    <div class="p"><b>4. Применение</b><span class="m">Расследование · 12 мин · группы по 4</span></div>
+    <div class="p"><b>5. Рефлексия</b><span class="m">Проверь себя · 5 мин · каждый</span></div>
+  </div>
+</section>
+
+<!-- 2. ЛАБОРАТОРИЯ -->
+<section class="station" id="st-lab" role="tabpanel">
+  <div class="st-head">
+    <div>
+      <h2>Двигай круги и смотри, как меняются множества</h2>
+      <p>Перетаскивайте круг за середину, меняйте размер за край или за белую точку. Выберите операцию: жёлтым подсветится результат, а справа появится его состав.</p>
+    </div>
+    <div class="chips"><span class="chip pair"><b>Пары</b> · один управляет, второй записывает</span></div>
+  </div>
+  <div class="grid">
+    <div class="stack">
+    <div class="board">
+      <canvas id="cvLab" aria-label="Динамическая диаграмма Эйлера с перетаскиваемыми кругами"></canvas>
+      <div class="legend"><span><i class="sw a"></i>A</span><span><i class="sw b"></i>B</span><span id="lgC" hidden><i class="sw c"></i>C</span><span><i class="sw hl"></i>результат операции</span><span>U — все элементы (числа 1–12)</span></div>
+      <div class="row" style="margin:10px 4px 0">
+        <label class="toggle"><input type="checkbox" id="labC"> Третье множество C</label>
+        <label class="toggle"><input type="checkbox" id="labMove"> Можно двигать числа</label>
+        <button class="btn ghost" type="button" id="labReset">Вернуть как было</button>
+      </div>
+    </div>
+      <div class="panel">
+        <h3>Испытания для пары</h3>
+        <ul class="challenges" id="labCh"></ul>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h3>Операция</h3>
+        <div class="ops" id="labOps"></div>
+        <div class="big-sym" id="labSym"></div>
+        <p class="desc" id="labDesc"></p>
+      </div>
+      <div class="panel">
+        <h3>Состав множеств</h3>
+        <dl class="sets" id="labSets"></dl>
+        <span class="relation" id="labRel"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. РАЗЛОЖИ -->
+<section class="station" id="st-sort" role="tabpanel">
+  <div class="st-head">
+    <div>
+      <h2>Разложи по кругам</h2>
+      <p>Перетащите каждую карточку в нужную область диаграммы. Карточки, которые не подходят ни под A, ни под B, кладите в прямоугольник вне кругов. Потом ответьте на вопросы.</p>
+    </div>
+    <div class="chips"><span class="chip pair"><b>Пары</b> · 6 мин</span></div>
+  </div>
+  <div class="tabs-mini" id="sortTabs"></div>
+  <div class="grid">
+    <div>
+      <div class="board" id="sortBoard">
+        <div class="stage"><canvas id="cvSort" aria-label="Диаграмма Эйлера для раскладки карточек"></canvas>
+        <div class="drop-layer" id="sortLayer"></div></div>
+        <div class="legend"><span><i class="sw a"></i><span id="sortLA"></span></span><span><i class="sw b"></i><span id="sortLB"></span></span><span id="sortLU"></span></div>
+      </div>
+      <div class="tray" id="sortTray" aria-label="Карточки для раскладки"></div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h3>Проверка</h3>
+        <div class="row">
+          <button class="btn" type="button" id="sortCheck">Проверить раскладку</button>
+          <button class="btn ghost" type="button" id="sortReset">Начать заново</button>
+        </div>
+        <div class="verdict" id="sortVerdict" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <h3>Вопросы по диаграмме</h3>
+        <ul class="qlist" id="sortQs"></ul>
+        <button class="btn" type="button" id="sortQCheck" style="margin-top:12px">Проверить ответы</button>
+        <div class="verdict" id="sortQVerdict" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. РАССЛЕДОВАНИЕ -->
+<section class="station" id="st-case" role="tabpanel">
+  <div class="st-head">
+    <div>
+      <h2>Расследование: сколько не попало в круги?</h2>
+      <p>Каждая группа получает свой вариант. Сначала заполните числами все четыре области диаграммы, затем ответьте на вопрос задачи.</p>
+    </div>
+    <div class="chips"><span class="chip group"><b>Группы по 4</b> · 12 мин</span></div>
+  </div>
+  <div class="grid">
+    <div class="stack">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <h3 style="margin:0">Вариант <span id="caseNo">1</span></h3>
+          <div class="row">
+            <label class="toggle"><input type="checkbox" id="caseHard"> Задача потруднее</label>
+            <button class="btn ghost" type="button" id="caseNew">Новый вариант</button>
+          </div>
+        </div>
+        <p class="case-text" id="caseText"></p>
+      </div>
+      <div class="board" id="caseBoard">
+        <div class="stage"><canvas id="cvCase" aria-label="Диаграмма Эйлера для заполнения числами"></canvas>
+        <div class="drop-layer" id="caseLayer"></div></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h3>Ответ группы</h3>
+        <ul class="qlist"><li><span id="caseQ"></span><input id="caseAns" inputmode="numeric" aria-label="Ответ на вопрос задачи"></li></ul>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" type="button" id="caseCheck">Проверить</button>
+          <button class="btn ghost" type="button" id="caseHint">Подсказка</button>
+        </div>
+        <div class="verdict" id="caseVerdict" aria-live="polite"></div>
+        <p class="desc" id="caseHintText" hidden></p>
+      </div>
+      <div class="panel">
+        <h3>Роли в группе</h3>
+        <div class="roles">
+          <div class="role"><b>Чтец</b>Читает условие вслух и следит, чтобы все данные попали в диаграмму.</div>
+          <div class="role"><b>Чертёжник</b>Вписывает числа в области на экране.</div>
+          <div class="role"><b>Вычислитель</b>Считает и проверяет, что сумма всех областей равна числу элементов U.</div>
+          <div class="role"><b>Спикер</b>Объясняет классу, с какой области группа начала и почему.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. СВОЙСТВА -->
+<section class="station" id="st-props" role="tabpanel">
+  <div class="st-head">
+    <div>
+      <h2>Свойства операций: проверяем глазами</h2>
+      <p>Выберите свойство и нажимайте «Следующий шаг». Левая и правая части строятся по шагам. Если в конце подсвечены одни и те же области, равенство верно для любых множеств.</p>
+    </div>
+    <div class="chips"><span class="chip front"><b>Весь класс</b> · следующий урок</span></div>
+  </div>
+  <div class="tabs-mini" id="propTabs"></div>
+  <div class="duo">
+    <div class="side"><div class="cap" id="propL"></div><canvas id="cvPL" aria-label="Левая часть равенства"></canvas><div class="step" id="propLS"></div></div>
+    <div class="eq">=</div>
+    <div class="side"><div class="cap" id="propR"></div><canvas id="cvPR" aria-label="Правая часть равенства"></canvas><div class="step" id="propRS"></div></div>
+  </div>
+  <div class="row" style="margin-top:14px;justify-content:center">
+    <button class="btn ghost" type="button" id="propBack">Сначала</button>
+    <button class="btn" type="button" id="propNext">Следующий шаг</button>
+  </div>
+  <p class="desc" id="propNote" style="text-align:center;margin-top:10px"></p>
+</section>
+
+<!-- 6. ПРОВЕРЬ СЕБЯ -->
+<section class="station" id="st-quiz" role="tabpanel">
+  <div class="st-head">
+    <div>
+      <h2>Проверь себя</h2>
+      <p>Пусть A = {1, 2, 3, 4}, B = {3, 4, 5}, а U = {1, 2, 3, 4, 5, 6}. Верно ли утверждение?</p>
+    </div>
+    <div class="chips"><span class="chip"><b>Каждый</b> · 5 мин</span></div>
+  </div>
+  <div class="grid">
+    <ul class="quiz" id="quiz"></ul>
+    <div class="stack">
+      <div class="panel">
+        <h3>Результат</h3>
+        <div class="stat"><div class="k">Верных ответов</div><div class="val" id="quizScore">0 из 6</div></div>
+        <button class="btn ghost" type="button" id="quizReset" style="margin-top:10px">Пройти ещё раз</button>
+      </div>
+      <div class="panel">
+        <h3>Как прошёл урок для меня</h3>
+        <div class="light" id="light">
+          <button type="button"><b><i class="dot" style="background:var(--ok)"></i>Всё понятно</b>Могу объяснить соседу, что такое ∪ и ∩</button>
+          <button type="button"><b><i class="dot" style="background:var(--hl)"></i>Почти</b>Иногда путаю объединение и пересечение</button>
+          <button type="button"><b><i class="dot" style="background:var(--bad)"></i>Нужна помощь</b>Хочу ещё раз разобрать на примере</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="wrap">Интерактивный цифровой образовательный ресурс к уроку «Операции над множествами. Диаграммы Эйлера». УМК: И. Р. Высоцкий, И. В. Ященко. Автор разработки: Головенко М. В., КГПУ им. В. П. Астафьева.</footer>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const W=800,H=500,U={x:16,y:16,w:768,h:468};
+
+/* ---------- цвета из темы ---------- */
+let C={};
+function readColors(){
+  const cs=getComputedStyle(document.documentElement);
+  ["paper","surface","ink","muted","line","a","b","c","hl","ok","bad"].forEach(k=>C[k]=cs.getPropertyValue("--"+k).trim());
+}
+function rgb(hex){hex=hex.replace("#","");if(hex.length===3)hex=hex.split("").map(x=>x+x).join("");const n=parseInt(hex,16);return[(n>>16)&255,(n>>8)&255,n&255];}
+function rgba(hex,a){const[r,g,b]=rgb(hex);return`rgba(${r},${g},${b},${a})`;}
+readColors();
+
+/* ---------- общий рисовальщик диаграмм ---------- */
+const off=document.createElement("canvas");off.width=W;off.height=H;const offctx=off.getContext("2d");
+function prep(cv){
+  const dpr=window.devicePixelRatio||1;const w=cv.clientWidth||600;const h=w*H/W;
+  const pw=Math.round(w*dpr),ph=Math.round(h*dpr);
+  if(cv.width!==pw||cv.height!==ph){cv.width=pw;cv.height=ph;cv.style.height=h+"px";}
+  const ctx=cv.getContext("2d");ctx.setTransform(pw/W,0,0,ph/H,0,0);return ctx;
+}
+const inC=(c,x,y)=>!!c&&((x-c.x)*(x-c.x)+(y-c.y)*(y-c.y)<=c.r*c.r);
+function shade(ctx,circ,fn,color,alpha){
+  const img=offctx.createImageData(W,H),d=img.data,[r,g,b]=rgb(color),A=Math.round(alpha*255);
+  const ca=circ.A,cb=circ.B,cc=circ.C;
+  for(let y=U.y;y<U.y+U.h;y++){
+    for(let x=U.x;x<U.x+U.w;x++){
+      const a=inC(ca,x,y),bb=inC(cb,x,y),c=cc?inC(cc,x,y):false;
+      if(fn(a,bb,c)){const i=(y*W+x)*4;d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=A;}
+    }
+  }
+  offctx.putImageData(img,0,0);ctx.drawImage(off,0,0,W,H);
+}
+function drawBase(ctx,circ,fn,opt){
+  opt=opt||{};
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=C.surface;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=rgba(C.ink,0.035);ctx.fillRect(U.x,U.y,U.w,U.h);
+  const order=[["A",C.a],["B",C.b],["C",C.c]];
+  ctx.save();ctx.beginPath();ctx.rect(U.x,U.y,U.w,U.h);ctx.clip();
+  order.forEach(([k,col])=>{const c=circ[k];if(!c)return;ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.fillStyle=rgba(col,0.09);ctx.fill();});
+  if(fn)shade(ctx,circ,fn,C.hl,0.72);
+  ctx.lineWidth=2;ctx.strokeStyle=C.line;ctx.strokeRect(U.x,U.y,U.w,U.h);
+  ctx.fillStyle=C.muted;ctx.font="600 22px Golos Text, sans-serif";ctx.textBaseline="top";ctx.textAlign="left";ctx.fillText("U",U.x+12,U.y+10);
+  order.forEach(([k,col])=>{const c=circ[k];if(!c)return;
+    ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.lineWidth=4;ctx.strokeStyle=col;ctx.stroke();
+    if(opt.labels!==false){
+      const ang=k==="A"?-2.36:k==="B"?-0.78:2.2;
+      let lx=c.x+Math.cos(ang)*(c.r+18),ly=c.y+Math.sin(ang)*(c.r+18);
+      lx=Math.max(U.x+16,Math.min(U.x+U.w-16,lx));ly=Math.max(U.y+16,Math.min(U.y+U.h-16,ly));
+      ctx.font="700 26px Unbounded, Golos Text, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle=col;ctx.fillText(k,lx,ly);
+    }
+    if(opt.handles){const hx=c.x+c.r*Math.cos(-0.6),hy=c.y+c.r*Math.sin(-0.6);ctx.beginPath();ctx.arc(hx,hy,9,0,Math.PI*2);ctx.fillStyle=C.surface;ctx.fill();ctx.lineWidth=3;ctx.strokeStyle=col;ctx.stroke();}
+  });
+  ctx.restore();
+}
+function toLogical(cv,e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};}
+const fmtSet=a=>a.length?"{"+a.join(", ")+"}":"∅";
+
+/* ---------- вкладки ---------- */
+const tabs=[...document.querySelectorAll('nav.tabs [role="tab"]')];
+const renderers={};
+function show(id){
+  if(!document.getElementById("st-"+id))id="opros";
+  tabs.forEach(t=>t.setAttribute("aria-selected",String(t.dataset.tab===id)));
+  document.querySelectorAll("section.station").forEach(s=>s.classList.toggle("on",s.id==="st-"+id));
+  if(renderers[id])requestAnimationFrame(renderers[id]);
+}
+tabs.forEach(t=>t.addEventListener("click",()=>{try{history.replaceState(null,"","#"+t.dataset.tab);}catch(e){}show(t.dataset.tab);}));
+window.addEventListener("hashchange",()=>show(location.hash.slice(1)));
+function rerenderAll(){readColors();const cur=tabs.find(t=>t.getAttribute("aria-selected")==="true");if(cur&&renderers[cur.dataset.tab])renderers[cur.dataset.tab]();}
+window.addEventListener("resize",()=>requestAnimationFrame(rerenderAll));
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",rerenderAll);}catch(e){}
+new MutationObserver(rerenderAll).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+/* ---------- таймер ---------- */
+let tEnd=0,tInt=null;const clock=$("#clock");
+function tick(){const left=Math.max(0,Math.round((tEnd-Date.now())/1000));clock.textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");if(left===0){clearInterval(tInt);tInt=null;clock.classList.remove("run");clock.classList.add("done");clock.textContent="Время!";}}
+document.querySelectorAll(".timer [data-min]").forEach(b=>b.addEventListener("click",()=>{tEnd=Date.now()+(+b.dataset.min)*60000;clock.classList.remove("done");clock.classList.add("run");if(tInt)clearInterval(tInt);tInt=setInterval(tick,250);tick();}));
+$("#timerStop").addEventListener("click",()=>{if(tInt)clearInterval(tInt);tInt=null;clock.className="clock";clock.textContent="0:00";});
+
+/* =========================================================
+   1. ОПРОС
+   ========================================================= */
+const sv={onlyA:0,both:0,onlyB:0,none:0};
+const svCirc={A:{x:310,y:255,r:170},B:{x:490,y:255,r:170}};
+const svDefs=[["onlyA","Только A"],["both","И A, и B"],["onlyB","Только B"],["none","Ни A, ни B"]];
+const svBox=$("#surveyBtns");
+svDefs.forEach(([k,t])=>{
+  const d=document.createElement("div");d.className="sbtn";
+  d.innerHTML=`<span class="t">${t}</span><span class="ctrl"><button type="button" aria-label="Убрать голос: ${t}">−</button><span class="v" id="sv-${k}">0</span><button type="button" class="plus" aria-label="Добавить голос: ${t}">+</button></span>`;
+  const[m,p]=d.querySelectorAll("button");
+  m.addEventListener("click",()=>{sv[k]=Math.max(0,sv[k]-1);svUpdate();});
+  p.addEventListener("click",()=>{sv[k]++;svUpdate();});
+  svBox.appendChild(d);
+});
+function svUpdate(){
+  svDefs.forEach(([k])=>$("#sv-"+k).textContent=sv[k]);
+  const nA=sv.onlyA+sv.both,nB=sv.onlyB+sv.both,nU=nA+sv.onlyB+sv.none,nAuB=nA+sv.onlyB;
+  $("#svStats").innerHTML=[["n(A)",nA],["n(B)",nB],["n(A ∩ B)",sv.both],["n(A ∪ B)",nAuB],["Всего в классе",nU]].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="val">${v}</div></div>`).join("");
+  $("#svRevealText").innerHTML=`Если сложить n(A) + n(B) = ${nA} + ${nB} = <b>${nA+nB}</b>, получится больше, чем ${nAuB}. Те, кто в пересечении (${sv.both} чел.), посчитаны дважды: один раз в A и ещё раз в B. Поэтому их нужно вычесть один раз.`;
+  $("#lgA").textContent="A — "+$("#inA").value;$("#lgB").textContent="B — "+$("#inB").value;
+  renderOpros();
+}
+function renderOpros(){
+  const cv=$("#cvOpros");const ctx=prep(cv);drawBase(ctx,svCirc,null);
+  ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle=C.ink;ctx.font="700 54px Unbounded, Golos Text, sans-serif";
+  ctx.fillText(sv.onlyA,215,255);ctx.fillText(sv.both,400,255);ctx.fillText(sv.onlyB,585,255);
+  ctx.fillText(sv.none,700,430);
+  ctx.font="500 17px Golos Text, sans-serif";ctx.fillStyle=C.muted;
+  ctx.fillText("только A",215,300);ctx.fillText("A и B",400,300);ctx.fillText("только B",585,300);ctx.fillText("ни там, ни там",700,468);
+}
+renderers.opros=renderOpros;
+$("#inA").addEventListener("input",svUpdate);$("#inB").addEventListener("input",svUpdate);
+$("#svExample").addEventListener("click",()=>{Object.assign(sv,{onlyA:8,both:5,onlyB:6,none:7});svUpdate();});
+$("#svReset").addEventListener("click",()=>{Object.assign(sv,{onlyA:0,both:0,onlyB:0,none:0});$("#svRevealBox").hidden=true;svUpdate();});
+$("#svReveal").addEventListener("click",()=>{$("#svRevealBox").hidden=false;});
+
+/* =========================================================
+   2. ЛАБОРАТОРИЯ
+   ========================================================= */
+const LAB0={A:{x:310,y:250,r:150},B:{x:490,y:250,r:150},C:{x:400,y:370,r:115}};
+const LABPTS0=[[230,200],[250,320],[300,140],[400,210],[400,295],[560,170],[585,320],[515,385],[80,80],[715,80],[725,430],[85,425]];
+let lab,labPts,labOp="AuB";
+const done=new Set();
+function labResetState(){lab=JSON.parse(JSON.stringify(LAB0));labPts=LABPTS0.map(([x,y],i)=>({n:i+1,x,y}));}
+labResetState();
+const OPS2=[
+  {id:"A",h:"A",d:"Все элементы множества A.",f:(a)=>a},
+  {id:"B",h:"B",d:"Все элементы множества B.",f:(a,b)=>b},
+  {id:"AuB",h:"A ∪ B",d:"Объединение: элементы, которые принадлежат множеству A или множеству B (хотя бы одному из них).",f:(a,b)=>a||b},
+  {id:"AnB",h:"A ∩ B",d:"Пересечение: элементы, которые принадлежат и A, и B одновременно.",f:(a,b)=>a&&b},
+  {id:"nA",h:'<span class="ov">A</span>',d:"Дополнение множества A: элементы U, которые не принадлежат A.",f:(a)=>!a},
+  {id:"nB",h:'<span class="ov">B</span>',d:"Дополнение множества B: элементы U, которые не принадлежат B.",f:(a,b)=>!b},
+  {id:"AnnB",h:'A ∩ <span class="ov">B</span>',d:"Элементы A, которые не принадлежат B («только A»).",f:(a,b)=>a&&!b},
+  {id:"nAuB",h:'<span class="ov">A ∪ B</span>',d:"Элементы, которые не попали ни в A, ни в B.",f:(a,b)=>!(a||b)}
+];
+const OPS3=[
+  {id:"AnBnC",h:"A ∩ B ∩ C",d:"Элементы, которые принадлежат всем трём множествам.",f:(a,b,c)=>a&&b&&c},
+  {id:"AuBuC",h:"A ∪ B ∪ C",d:"Элементы, которые принадлежат хотя бы одному из трёх множеств.",f:(a,b,c)=>a||b||c},
+  {id:"An(BuC)",h:"A ∩ (B ∪ C)",d:"Сначала объединяем B и C, потом пересекаем результат с A.",f:(a,b,c)=>a&&(b||c)},
+  {id:"(AnB)uC",h:"(A ∩ B) ∪ C",d:"Сначала пересекаем A и B, потом объединяем результат с C.",f:(a,b,c)=>(a&&b)||c}
+];
+const labOpsAll=()=>lab3()?OPS2.concat(OPS3):OPS2;
+const lab3=()=>$("#labC").checked;
+function labCirc(){return lab3()?{A:lab.A,B:lab.B,C:lab.C}:{A:lab.A,B:lab.B};}
+function buildOps(){
+  const box=$("#labOps");box.innerHTML="";
+  const list=labOpsAll();if(!list.find(o=>o.id===labOp))labOp="AuB";
+  list.forEach(o=>{const b=document.createElement("button");b.type="button";b.innerHTML=o.h;b.setAttribute("aria-pressed",String(o.id===labOp));b.addEventListener("click",()=>{labOp=o.id;buildOps();renderLab();});box.appendChild(b);});
+}
+const CH=[
+  {t:"Сделайте так, чтобы A ∩ B = ∅, а в каждом из множеств A и B осталось не меньше трёх чисел.",s:"Подсказка: что должно случиться с кругами?",ok:s=>s.AnB.length===0&&s.A.length>=3&&s.B.length>=3},
+  {t:"Сделайте B подмножеством A: B ⊂ A, причём в B не меньше трёх чисел, а в A есть числа, которых нет в B.",s:"Каждое число из B должно лежать и в A.",ok:s=>s.B.length>=3&&s.B.every(n=>s.A.includes(n))&&s.A.length>s.B.length},
+  {t:"Добейтесь, чтобы n(A ∪ B) = 9 и n(A ∩ B) = 3.",s:"Чему тогда равно n(A) + n(B)?",ok:s=>s.AuB.length===9&&s.AnB.length===3},
+  {t:"Сделайте так, чтобы дополнение A ∪ B было пустым: вне кругов не должно остаться ни одного числа.",s:"Какое множество тогда получится в A ∪ B?",ok:s=>s.out.length===0}
+];
+function labSets(){
+  const c=labCirc(),r={A:[],B:[],C:[],AnB:[],AuB:[],out:[],res:[]};
+  const op=labOpsAll().find(o=>o.id===labOp);
+  labPts.forEach(p=>{const a=inC(c.A,p.x,p.y),b=inC(c.B,p.x,p.y),cc=c.C?inC(c.C,p.x,p.y):false;
+    if(a)r.A.push(p.n);if(b)r.B.push(p.n);if(cc)r.C.push(p.n);if(a&&b)r.AnB.push(p.n);if(a||b)r.AuB.push(p.n);else r.out.push(p.n);
+    if(op.f(a,b,cc))r.res.push(p.n);});
+  return r;
+}
+function renderLab(){
+  const cv=$("#cvLab");const ctx=prep(cv);const op=labOpsAll().find(o=>o.id===labOp);
+  drawBase(ctx,labCirc(),op.f,{handles:true});
+  const c=labCirc();
+  labPts.forEach(p=>{
+    const a=inC(c.A,p.x,p.y),b=inC(c.B,p.x,p.y),cc=c.C?inC(c.C,p.x,p.y):false,on=op.f(a,b,cc);
+    ctx.beginPath();ctx.arc(p.x,p.y,17,0,Math.PI*2);ctx.fillStyle=on?C.ink:C.surface;ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle=C.ink;ctx.stroke();
+    ctx.fillStyle=on?C.surface:C.ink;ctx.font="700 17px Golos Text, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(p.n,p.x,p.y+1);
+  });
+  $("#labSym").innerHTML=op.h;$("#labDesc").textContent=op.d;
+  const s=labSets();
+  let rows=`<dt>A</dt><dd>${fmtSet(s.A)}</dd><dt>B</dt><dd>${fmtSet(s.B)}</dd>`;
+  if(lab3())rows+=`<dt>C</dt><dd>${fmtSet(s.C)}</dd>`;
+  rows+=`<dt>${op.h}</dt><dd><span class="res">${fmtSet(s.res)}</span>, n = ${s.res.length}</dd>`;
+  $("#labSets").innerHTML=rows;
+  let rel;
+  const subBA=s.B.length&&s.B.every(n=>s.A.includes(n)),subAB=s.A.length&&s.A.every(n=>s.B.includes(n));
+  if(subBA&&subAB)rel="A = B: множества состоят из одних и тех же чисел";
+  else if(subBA)rel="B ⊂ A: каждое число из B лежит и в A";
+  else if(subAB)rel="A ⊂ B: каждое число из A лежит и в B";
+  else if(s.AnB.length===0)rel="A ∩ B = ∅: общих чисел нет";
+  else rel="У A и B есть общие числа, но ни одно не является подмножеством другого";
+  $("#labRel").textContent=rel;
+  CH.forEach((ch,i)=>{if(ch.ok(s))done.add(i);});
+  $("#labCh").innerHTML=CH.map((ch,i)=>`<li class="${done.has(i)?"done":""}"><span class="mk">${done.has(i)?"✓":i+1}</span><span>${ch.t}<small>${done.has(i)?"Выполнено. Запишите в тетрадь, как вы этого добились.":ch.s}</small></span></li>`).join("");
+}
+renderers.lab=renderLab;
+let drag=null;
+const cvLab=$("#cvLab");
+function labHit(p){
+  if($("#labMove").checked){for(const q of labPts){if(Math.hypot(q.x-p.x,q.y-p.y)<20)return{kind:"pt",q};}}
+  const keys=lab3()?["C","B","A"]:["B","A"];
+  for(const k of keys){const c=lab[k];const d=Math.hypot(p.x-c.x,p.y-c.y);const hx=c.x+c.r*Math.cos(-0.6),hy=c.y+c.r*Math.sin(-0.6);
+    if(Math.hypot(p.x-hx,p.y-hy)<18||Math.abs(d-c.r)<12)return{kind:"r",k};}
+  let best=null,bd=1e9;for(const k of keys){const c=lab[k];const d=Math.hypot(p.x-c.x,p.y-c.y);if(d<c.r&&d<bd){bd=d;best=k;}}
+  return best?{kind:"m",k:best}:null;
+}
+cvLab.addEventListener("pointerdown",e=>{const p=toLogical(cvLab,e);const h=labHit(p);if(!h)return;e.preventDefault();cvLab.setPointerCapture(e.pointerId);
+  drag=h;if(h.kind==="m"){drag.dx=p.x-lab[h.k].x;drag.dy=p.y-lab[h.k].y;}});
+let raf=0;function req(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;renderLab();});}
+cvLab.addEventListener("pointermove",e=>{const p=toLogical(cvLab,e);
+  if(!drag){const h=labHit(p);cvLab.style.cursor=!h?"default":h.kind==="r"?"nwse-resize":h.kind==="pt"?"grab":"move";return;}
+  if(drag.kind==="m"){const c=lab[drag.k];c.x=Math.max(U.x,Math.min(U.x+U.w,p.x-drag.dx));c.y=Math.max(U.y,Math.min(U.y+U.h,p.y-drag.dy));}
+  else if(drag.kind==="r"){const c=lab[drag.k];c.r=Math.max(35,Math.min(320,Math.hypot(p.x-c.x,p.y-c.y)));}
+  else{drag.q.x=Math.max(U.x+18,Math.min(U.x+U.w-18,p.x));drag.q.y=Math.max(U.y+18,Math.min(U.y+U.h-18,p.y));}
+  req();});
+const endDrag=()=>{drag=null;};
+cvLab.addEventListener("pointerup",endDrag);cvLab.addEventListener("pointercancel",endDrag);
+$("#labC").addEventListener("change",()=>{$("#lgC").hidden=!lab3();buildOps();renderLab();});
+$("#labMove").addEventListener("change",renderLab);
+$("#labReset").addEventListener("click",()=>{labResetState();renderLab();});
+buildOps();
+
+/* =========================================================
+   3. РАЗЛОЖИ ПО КРУГАМ
+   ========================================================= */
+const SORT={
+  menu:{name:"Меню столовой",A:"есть молочные продукты",B:"есть глютен (пшеничная мука)",U:"U — блюда в меню",
+    items:[["Сырники","творог, мука, яйцо",1,1],["Блины","молоко, мука, яйцо",1,1],["Пицца","тесто из муки, сыр, томаты",1,1],["Рисовая каша","рис, молоко",1,0],["Йогурт","молоко, ягоды",1,0],["Картофельное пюре","картофель, молоко",1,0],["Макароны","мука, вода",0,1],["Пшеничный хлеб","мука, дрожжи, вода",0,1],["Гречка с курицей","гречка, курица, морковь",0,0],["Овощной салат","огурцы, томаты, растительное масло",0,0],["Компот","сухофрукты, вода",0,0],["Рыба с рисом","рыба, рис, лимон",0,0]],
+    qs:[["Диме нельзя молочные продукты. Сколько блюд из меню ему можно?",6],["Лене нельзя ни молочное, ни глютен. Сколько блюд подойдёт ей?",4],["Сколько блюд содержат и молочные продукты, и глютен? (n(A ∩ B))",3],["Сколько блюд содержат хотя бы что-то одно? (n(A ∪ B))",8]]},
+  clubs:{name:"Секции 8 «Б»",A:"спортивная секция",B:"музыка или творчество",U:"U — ученики группы",
+    items:[["Аня","волейбол, хор",1,1],["Борис","футбол",1,0],["Вика","художественная школа",0,1],["Гоша","пока никуда не ходит",0,0],["Даша","плавание, гитара",1,1],["Егор","робототехника",0,0],["Зоя","фортепиано",0,1],["Илья","хоккей",1,0],["Катя","лёгкая атлетика, театральная студия",1,1],["Лёва","бокс",1,0],["Маша","вокал",0,1]],
+    qs:[["Сколько учеников ходят хотя бы в одну секцию или кружок?",9],["Сколько учеников занимаются только спортом?",3],["n(A) + n(B) = 12, а в кругах всего 9 учеников. Сколько учеников посчитаны дважды?",3]]},
+  nums:{name:"Числа от 1 до 15",A:"чётные числа",B:"числа, кратные 3",U:"U — числа от 1 до 15",
+    items:Array.from({length:15},(_,i)=>{const n=i+1;return[String(n),"",n%2===0?1:0,n%3===0?1:0];}),
+    qs:[["Сколько элементов в A ∩ B?",2],["Сколько элементов в A ∪ B?",10],["Сколько чисел не делятся ни на 2, ни на 3?",5]]}
+};
+const sortCirc={A:{x:300,y:255,r:185},B:{x:500,y:255,r:185}};
+let sortKey="menu",sortState=[];
+function sortRegion(x,y){return{a:inC(sortCirc.A,x,y),b:inC(sortCirc.B,x,y)};}
+function buildSortTabs(){
+  const box=$("#sortTabs");box.innerHTML="";
+  Object.entries(SORT).forEach(([k,s])=>{const b=document.createElement("button");b.type="button";b.textContent=s.name;b.setAttribute("aria-pressed",String(k===sortKey));b.addEventListener("click",()=>{sortKey=k;buildSortTabs();sortLoad();});box.appendChild(b);});
+}
+function sortLoad(){
+  const s=SORT[sortKey];
+  $("#sortLA").textContent="A — "+s.A;$("#sortLB").textContent="B — "+s.B;$("#sortLU").textContent=s.U;
+  sortState=s.items.map(([nm,sub,a,b],i)=>({i,nm,sub,a:!!a,b:!!b,pos:null}));
+  $("#sortVerdict").textContent="";$("#sortVerdict").className="verdict";
+  $("#sortQVerdict").textContent="";$("#sortQVerdict").className="verdict";
+  $("#sortQs").innerHTML=s.qs.map(([q],i)=>`<li><label for="sq${i}">${q}</label><input id="sq${i}" inputmode="numeric"></li>`).join("");
+  sortDrawCards();renderSort();
+}
+function makeCard(it){
+  const el=document.createElement("div");el.className="card";el.dataset.i=it.i;
+  el.innerHTML=`<span class="nm">${it.nm}</span>${it.sub?`<span class="sub">${it.sub}</span>`:""}`;
+  if(it.sub)el.title=it.nm+": "+it.sub;
+  el.addEventListener("pointerdown",cardDown);
+  return el;
+}
+function sortDrawCards(){
+  const tray=$("#sortTray"),layer=$("#sortLayer");tray.innerHTML="";layer.innerHTML="";
+  sortState.forEach(it=>{const el=makeCard(it);
+    if(it.pos){el.classList.add("placed");el.style.left=(it.pos.x/W*100)+"%";el.style.top=(it.pos.y/H*100)+"%";layer.appendChild(el);}
+    else tray.appendChild(el);});
+}
+let cDrag=null;
+function cardDown(e){
+  e.preventDefault();const el=e.currentTarget;const it=sortState[+el.dataset.i];
+  el.classList.remove("right","wrong");
+  const rect=el.getBoundingClientRect();
+  document.body.appendChild(el);el.classList.remove("placed");el.classList.add("dragging");
+  el.style.left=e.clientX+"px";el.style.top=e.clientY+"px";
+  cDrag={el,it,id:e.pointerId};
+  try{el.setPointerCapture(e.pointerId);}catch(_){}
+  el.addEventListener("pointermove",cardMove);el.addEventListener("pointerup",cardUp);el.addEventListener("pointercancel",cardUp);
+}
+function cardMove(e){if(!cDrag)return;cDrag.el.style.left=e.clientX+"px";cDrag.el.style.top=e.clientY+"px";}
+function cardUp(e){
+  if(!cDrag)return;const{el,it}=cDrag;cDrag=null;
+  el.removeEventListener("pointermove",cardMove);el.removeEventListener("pointerup",cardUp);el.removeEventListener("pointercancel",cardUp);
+  const cv=$("#cvSort");const r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)/r.width*W,y=(e.clientY-r.top)/r.height*H;
+  if(x>=U.x&&x<=U.x+U.w&&y>=U.y&&y<=U.y+U.h)it.pos={x,y};else it.pos=null;
+  el.remove();el.classList.remove("dragging");el.style.left="";el.style.top="";
+  sortDrawCards();
+}
+function renderSort(){
+  const ctx=prep($("#cvSort"));drawBase(ctx,sortCirc,null);
+  ctx.font="500 16px Golos Text, sans-serif";ctx.fillStyle=C.muted;ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText("только A",190,470-2);ctx.fillText("A и B",400,470-2);ctx.fillText("только B",610,470-2);
+}
+renderers.sort=renderSort;
+$("#sortCheck").addEventListener("click",()=>{
+  let ok=0,placed=0;
+  document.querySelectorAll("#sortLayer .card").forEach(el=>{const it=sortState[+el.dataset.i];placed++;const r=sortRegion(it.pos.x,it.pos.y);const good=r.a===it.a&&r.b===it.b;if(good)ok++;el.classList.toggle("right",good);el.classList.toggle("wrong",!good);});
+  const total=sortState.length,v=$("#sortVerdict");
+  if(placed<total){v.className="verdict bad";v.textContent=`Разложено ${placed} из ${total}. Верно: ${ok}. Разложите оставшиеся карточки.`;}
+  else if(ok===total){v.className="verdict ok";v.textContent=`Все ${total} карточек на своих местах. Переходите к вопросам.`;}
+  else{v.className="verdict bad";v.textContent=`Верно ${ok} из ${total}. Красные карточки перенесите в другую область и проверьте ещё раз.`;}
+});
+$("#sortReset").addEventListener("click",sortLoad);
+$("#sortQCheck").addEventListener("click",()=>{
+  const qs=SORT[sortKey].qs;let ok=0;
+  qs.forEach(([,ans],i)=>{const inp=$("#sq"+i);const v=inp.value.trim();const good=v!==""&&+v===ans;if(good)ok++;inp.classList.toggle("right",good);inp.classList.toggle("wrong",v!==""&&!good);});
+  const v=$("#sortQVerdict");v.className="verdict "+(ok===qs.length?"ok":"bad");
+  v.textContent=ok===qs.length?"Все ответы верные.":`Верно ${ok} из ${qs.length}. Посчитайте по диаграмме ещё раз.`;
+});
+buildSortTabs();sortLoad();
+
+/* =========================================================
+   4. РАССЛЕДОВАНИЕ
+   ========================================================= */
+const CTX=[
+  {U:"В 8 «Б» классе",u:"учеников",A:"ходят в спортивную секцию",B:"занимаются в музыкальной школе",q0:"не ходят ни туда, ни туда",q1:"ходят и в секцию, и в музыкальную школу"},
+  {U:"За час в магазин зашли",u:"покупателей",A:"купили хлеб",B:"купили молоко",q0:"не купили ни хлеба, ни молока",q1:"купили и хлеб, и молоко"},
+  {U:"В туристической группе",u:"человек",A:"говорят по-английски",B:"говорят по-китайски",q0:"не говорят ни на одном из этих языков",q1:"говорят на обоих языках"},
+  {U:"В школьной олимпиаде участвовали",u:"участников",A:"решили задачу № 1",B:"решили задачу № 2",q0:"не решили ни одной из этих задач",q1:"решили обе задачи"},
+  {U:"В опросе о соцсетях участвовали",u:"восьмиклассников",A:"смотрят видео на YouTube",B:"пользуются ВКонтакте",q0:"не пользуются ни тем, ни другим",q1:"пользуются и тем, и другим"}
+];
+const caseCirc={A:{x:310,y:255,r:170},B:{x:490,y:255,r:170}};
+const caseSpots={onlyA:[215,255],both:[400,255],onlyB:[585,255],none:[700,430]};
+let cs=null,caseN=0;
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+function caseNew(first){
+  caseN++;const ctx=CTX[first?0:rnd(0,CTX.length-1)];
+  let v=first?{onlyA:10,both:5,onlyB:7,none:6}:{onlyA:rnd(4,11),both:rnd(2,7),onlyB:rnd(3,10),none:rnd(1,7)};
+  const N=v.onlyA+v.both+v.onlyB+v.none,nA=v.onlyA+v.both,nB=v.onlyB+v.both;
+  const hard=$("#caseHard").checked;
+  cs={ctx,v,N,nA,nB,hard};
+  $("#caseNo").textContent=caseN;
+  const t=hard
+    ?`${ctx.U} <b>${N}</b> ${ctx.u}. Из них <b>${nA}</b> ${ctx.A}, <b>${nB}</b> ${ctx.B}, а <b>${v.none}</b> ${ctx.q0}. Сколько ${ctx.u} ${ctx.q1}?`
+    :`${ctx.U} <b>${N}</b> ${ctx.u}. Из них <b>${nA}</b> ${ctx.A}, <b>${nB}</b> ${ctx.B}, причём <b>${v.both}</b> ${ctx.q1}. Сколько ${ctx.u} ${ctx.q0}?`;
+  $("#caseText").innerHTML=t;
+  $("#caseQ").textContent=hard?`Сколько ${ctx.u} ${ctx.q1}?`:`Сколько ${ctx.u} ${ctx.q0}?`;
+  $("#caseAns").value="";$("#caseAns").className="";
+  $("#caseVerdict").textContent="";$("#caseVerdict").className="verdict";
+  $("#caseHintText").hidden=true;
+  const layer=$("#caseLayer");layer.innerHTML="";
+  Object.entries(caseSpots).forEach(([k,[x,y]])=>{const inp=document.createElement("input");inp.className="region-in";inp.id="cr-"+k;inp.inputMode="numeric";inp.placeholder="?";
+    inp.setAttribute("aria-label",{onlyA:"Только A",both:"A и B",onlyB:"Только B",none:"Ни A, ни B"}[k]);
+    inp.style.left=(x/W*100)+"%";inp.style.top=(y/H*100)+"%";inp.style.pointerEvents="auto";layer.appendChild(inp);});
+  renderCase();
+}
+function renderCase(){
+  const ctx=prep($("#cvCase"));drawBase(ctx,caseCirc,null);
+  ctx.font="500 16px Golos Text, sans-serif";ctx.fillStyle=C.muted;ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText("только A",215,305);ctx.fillText("A и B",400,305);ctx.fillText("только B",585,305);ctx.fillText("ни A, ни B",700,470);
+}
+renderers.case=renderCase;
+$("#caseCheck").addEventListener("click",()=>{
+  if(!cs)return;let ok=0,filled=0;
+  Object.keys(caseSpots).forEach(k=>{const inp=$("#cr-"+k);const v=inp.value.trim();if(v!=="")filled++;const good=v!==""&&+v===cs.v[k];if(good)ok++;inp.classList.toggle("right",good);inp.classList.toggle("wrong",v!==""&&!good);});
+  const ans=$("#caseAns"),av=ans.value.trim(),target=cs.hard?cs.v.both:cs.v.none,good=av!==""&&+av===target;
+  ans.className=av===""?"":good?"right":"wrong";
+  const el=$("#caseVerdict");
+  if(ok===4&&good){el.className="verdict ok";el.textContent=`Расследование раскрыто. Проверка: ${cs.v.onlyA} + ${cs.v.both} + ${cs.v.onlyB} + ${cs.v.none} = ${cs.N}.`;}
+  else{el.className="verdict bad";el.textContent=`Областей заполнено верно: ${ok} из 4. ${filled<4?"Заполните все области. ":""}${av!==""&&!good?"Ответ пока неверный.":""}`;}
+});
+$("#caseHint").addEventListener("click",()=>{
+  if(!cs)return;const h=$("#caseHintText");h.hidden=false;
+  h.textContent=cs.hard
+    ?`Сначала найдите n(A ∪ B): из всех ${cs.N} вычтите тех, кто не попал ни в один круг. Затем используйте n(A ∪ B) = n(A) + n(B) − n(A ∩ B).`
+    :`Начните с пересечения: впишите ${cs.v.both} в середину. Тогда «только A» = ${cs.nA} − ${cs.v.both}. Сумма всех четырёх областей должна быть равна ${cs.N}.`;
+});
+$("#caseNew").addEventListener("click",()=>caseNew(false));
+$("#caseHard").addEventListener("change",()=>caseNew(false));
+caseNew(true);
+
+/* =========================================================
+   5. СВОЙСТВА
+   ========================================================= */
+const P3={A:{x:325,y:195,r:135},B:{x:475,y:195,r:135},C:{x:400,y:325,r:135}};
+const P2={A:{x:320,y:250,r:160},B:{x:480,y:250,r:160}};
+const PIN={A:{x:400,y:250,r:200},B:{x:440,y:275,r:95}};
+const OR=(a,b)=>a||b,AND=(a,b)=>a&&b;
+const PROPS=[
+  {name:"Переместительное (∪)",circ:P2,L:{h:"A ∪ B",s:[["A ∪ B",(a,b)=>a||b]]},R:{h:"B ∪ A",s:[["B ∪ A",(a,b)=>b||a]]},note:"Порядок множеств в объединении не важен."},
+  {name:"Переместительное (∩)",circ:P2,L:{h:"A ∩ B",s:[["A ∩ B",(a,b)=>a&&b]]},R:{h:"B ∩ A",s:[["B ∩ A",(a,b)=>b&&a]]},note:"Порядок множеств в пересечении не важен."},
+  {name:"Сочетательное (∪)",circ:P3,L:{h:"(A ∪ B) ∪ C",s:[["Шаг 1: A ∪ B",(a,b)=>a||b],["Шаг 2: (A ∪ B) ∪ C",(a,b,c)=>(a||b)||c]]},R:{h:"A ∪ (B ∪ C)",s:[["Шаг 1: B ∪ C",(a,b,c)=>b||c],["Шаг 2: A ∪ (B ∪ C)",(a,b,c)=>a||(b||c)]]},note:"Скобки в объединении можно расставлять как удобно, поэтому пишут просто A ∪ B ∪ C."},
+  {name:"Сочетательное (∩)",circ:P3,L:{h:"(A ∩ B) ∩ C",s:[["Шаг 1: A ∩ B",(a,b)=>a&&b],["Шаг 2: (A ∩ B) ∩ C",(a,b,c)=>a&&b&&c]]},R:{h:"A ∩ (B ∩ C)",s:[["Шаг 1: B ∩ C",(a,b,c)=>b&&c],["Шаг 2: A ∩ (B ∩ C)",(a,b,c)=>a&&b&&c]]},note:"Скобки в пересечении тоже можно не ставить: A ∩ B ∩ C."},
+  {name:"Распределительное",circ:P3,L:{h:"A ∩ (B ∪ C)",s:[["Шаг 1: B ∪ C",(a,b,c)=>b||c],["Шаг 2: A ∩ (B ∪ C)",(a,b,c)=>a&&(b||c)]]},R:{h:"(A ∩ B) ∪ (A ∩ C)",s:[["Шаг 1: A ∩ B",(a,b)=>a&&b],["Шаг 2: A ∩ C",(a,b,c)=>a&&c],["Шаг 3: (A ∩ B) ∪ (A ∩ C)",(a,b,c)=>(a&&b)||(a&&c)]]},note:"Похоже на раскрытие скобок: a · (b + c) = a · b + a · c."},
+  {name:"Распределительное (второе)",circ:P3,L:{h:"A ∪ (B ∩ C)",s:[["Шаг 1: B ∩ C",(a,b,c)=>b&&c],["Шаг 2: A ∪ (B ∩ C)",(a,b,c)=>a||(b&&c)]]},R:{h:"(A ∪ B) ∩ (A ∪ C)",s:[["Шаг 1: A ∪ B",(a,b)=>a||b],["Шаг 2: A ∪ C",(a,b,c)=>a||c],["Шаг 3: (A ∪ B) ∩ (A ∪ C)",(a,b,c)=>(a||b)&&(a||c)]]},note:"А это свойство у чисел не выполняется: a + b · c ≠ (a + b) · (a + c). Множества устроены по-своему."},
+  {name:"Свойство включения",circ:PIN,L:{h:"A ∪ B, если B ⊂ A",s:[["A ∪ B",(a,b)=>a||b]]},R:{h:"A",s:[["A",(a)=>a]]},note:"Если B ⊂ A, то A ∪ B = A и A ∩ B = B."}
+];
+let propI=4,propStep=0;
+function buildPropTabs(){
+  const box=$("#propTabs");box.innerHTML="";
+  PROPS.forEach((p,i)=>{const b=document.createElement("button");b.type="button";b.textContent=p.name;b.setAttribute("aria-pressed",String(i===propI));b.addEventListener("click",()=>{propI=i;propStep=0;buildPropTabs();renderProps();});box.appendChild(b);});
+}
+function renderProps(){
+  const p=PROPS[propI],maxS=Math.max(p.L.s.length,p.R.s.length);
+  const ls=p.L.s[Math.min(propStep,p.L.s.length-1)],rs=p.R.s[Math.min(propStep,p.R.s.length-1)];
+  drawBase(prep($("#cvPL")),p.circ,ls[1]);drawBase(prep($("#cvPR")),p.circ,rs[1]);
+  $("#propL").textContent=p.L.h;$("#propR").textContent=p.R.h;
+  $("#propLS").textContent=ls[0];$("#propRS").textContent=rs[0];
+  const last=propStep>=maxS-1;
+  $("#propNext").disabled=last;
+  $("#propNote").textContent=last?"Подсвечены одни и те же области. "+p.note:"Шаг "+(propStep+1)+" из "+maxS+".";
+}
+renderers.props=renderProps;
+$("#propNext").addEventListener("click",()=>{propStep++;renderProps();});
+$("#propBack").addEventListener("click",()=>{propStep=0;renderProps();});
+buildPropTabs();
+
+/* =========================================================
+   6. ПРОВЕРЬ СЕБЯ
+   ========================================================= */
+const QZ=[
+  ["A ∩ B = {3, 4}",true,"Числа 3 и 4 есть и в A, и в B."],
+  ["A ∪ B = {1, 2, 3, 4, 3, 4, 5}",false,"В множестве каждый элемент записывают один раз: A ∪ B = {1, 2, 3, 4, 5}."],
+  ["n(A ∪ B) = n(A) + n(B)",false,"4 + 3 = 7, а в A ∪ B всего 5 элементов: числа 3 и 4 посчитаны дважды."],
+  ['<span class="ov">A</span> = {5, 6}',true,"В U есть 1, 2, 3, 4, 5, 6. Не принадлежат A только 5 и 6."],
+  ["{3, 4} ⊂ B",true,"Оба числа 3 и 4 лежат в B, значит {3, 4} является подмножеством B."],
+  ["Если C ∩ D = ∅, то n(C ∪ D) = n(C) + n(D)",true,"Когда общих элементов нет, никого не посчитали дважды."]
+];
+function buildQuiz(){
+  const box=$("#quiz");box.innerHTML="";
+  QZ.forEach(([s,ans,fb],i)=>{const li=document.createElement("li");
+    li.innerHTML=`<span class="st">${s}</span><span class="yn"><button type="button" data-v="1">Верно</button><button type="button" data-v="0">Неверно</button></span><span class="fb">${fb}</span>`;
+    li.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{if(li.classList.contains("answered"))return;const v=b.dataset.v==="1";li.classList.add("answered",v===ans?"right":"wrong");b.style.borderColor="var(--ink)";quizScore();}));
+    box.appendChild(li);});
+  quizScore();
+}
+function quizScore(){$("#quizScore").textContent=document.querySelectorAll("#quiz li.right").length+" из "+QZ.length;}
+$("#quizReset").addEventListener("click",buildQuiz);
+buildQuiz();
+document.querySelectorAll("#light button").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("#light button").forEach(x=>x.setAttribute("aria-pressed","false"));b.setAttribute("aria-pressed","true");}));
+
+/* ---------- старт ---------- */
+svUpdate();
+show(location.hash.slice(1)||"opros");
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(rerenderAll);
+})();
+</script>
+</body>
+</html>
