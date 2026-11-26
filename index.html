@@ -202,6 +202,7 @@ section.station.on{display:block}
 .steps li{counter-increment:st;display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start;font-size:20px;line-height:1.4}
 .steps li::before{content:counter(st);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--hl);color:#172036;font-weight:700;font-size:17px}
 .steps li.extra::before{content:"+";background:var(--paper);color:var(--ink);border:1px solid var(--line)}
+.modal-note[hidden]{display:none}
 .modal-note{margin:16px 0 0;padding:10px 14px;border-radius:10px;background:var(--paper);font-size:17px}
 /* quiz */
 .quiz{display:flex;flex-direction:column;gap:10px;list-style:none;margin:0;padding:0}
@@ -317,7 +318,7 @@ footer{color:var(--muted);font-size:13px;padding:0 0 30px}
       <h2>Двигай круги и смотри, как меняются множества</h2>
       <p>Перетаскивайте круг за середину, меняйте размер за край или за белую точку. Выберите операцию: жёлтым подсветится результат, а справа появится его состав.</p>
     </div>
-    <div class="chips"><span class="chip pair"><b>Пары</b> · с компьютером по очереди</span><button class="btn instr-btn" type="button" data-instr="lab">Инструкция</button></div>
+    <div class="chips"><button class="btn instr-btn" type="button" data-instr="lab">Инструкция</button></div>
   </div>
   <div class="grid">
     <div class="stack">
@@ -331,7 +332,7 @@ footer{color:var(--muted);font-size:13px;padding:0 0 30px}
       </div>
     </div>
       <div class="panel">
-        <h3>Испытания для пары</h3>
+        <h3>Испытания</h3>
         <ul class="challenges" id="labCh"></ul>
       </div>
     </div>
@@ -362,7 +363,7 @@ footer{color:var(--muted);font-size:13px;padding:0 0 30px}
       <h2>Разложи по кругам</h2>
       <p>Перетащите каждую карточку в нужную область диаграммы. Карточки, которые не подходят ни под A, ни под B, кладите в прямоугольник вне кругов. Потом ответьте на вопросы.</p>
     </div>
-    <div class="chips"><span class="chip pair"><b>Пары</b> · с компьютером по очереди</span><button class="btn instr-btn" type="button" data-instr="sort">Инструкция</button></div>
+    <div class="chips"><button class="btn instr-btn" type="button" data-instr="sort">Инструкция</button></div>
   </div>
   <div class="tabs-mini" id="sortTabs"></div>
   <div class="grid">
@@ -902,24 +903,24 @@ const INSTR={
   lab:{t:"Инструкция: Лаборатория",steps:[
     "Круги пока не двигайте.",
     "Нажмите «A ∪ B». Запишите в таблицу, в столбец «Пример», какие числа подсветились.",
-    "Обсудите в паре: что общего у этих чисел? Запишите определение своими словами в столбец «Наше определение».",
+    "Подумайте: что общего у этих чисел? Запишите определение своими словами в столбец «Наше определение».",
     "Нажмите «Показать определение» и перепишите его в столбец «Определение (эталон)». Сравните: чем они отличаются?",
     "Сделайте то же самое для «A ∩ B» и «A с чертой» (дополнение).",
     "Выполните испытания 1 и 2 под диаграммой."],
     extra:"Успели раньше? Выполните испытания 3 и 4.",
-    note:"Работайте с компьютером по очереди: одну операцию нажимает один, следующую — другой. Таблица должна быть заполнена у каждого."},
+    note:""},
   sort:{t:"Инструкция: Разложи по кругам",steps:[
     "Выберите сюжет «Меню столовой».",
     "Прочитайте состав блюда на карточке и перетащите её в нужную область: только A, A и B, только B или вне кругов.",
     "Когда все карточки разложены, нажмите «Проверить раскладку». Красные карточки переложите и проверьте снова.",
     "Ответьте на вопросы справа и нажмите «Проверить ответы»."],
     extra:"Успели раньше? Переходите к сюжету «Секции 8 «Б»» или «Числа от 1 до 15».",
-    note:"Работайте по очереди: одну карточку кладёт один, следующую — другой."}
+    note:""}
 };
 const modal=$("#instr");let lastFocus=null;
 function openInstr(k){const d=INSTR[k];$("#instrTitle").textContent=d.t;
   $("#instrSteps").innerHTML=d.steps.map(x=>`<li>${x}</li>`).join("")+`<li class="extra">${d.extra}</li>`;
-  $("#instrNote").textContent=d.note;lastFocus=document.activeElement;modal.hidden=false;$("#instrClose").focus();}
+  $("#instrNote").textContent=d.note;$("#instrNote").hidden=!d.note;lastFocus=document.activeElement;modal.hidden=false;$("#instrClose").focus();}
 function closeInstr(){modal.hidden=true;if(lastFocus)lastFocus.focus();}
 document.querySelectorAll("[data-instr]").forEach(b=>b.addEventListener("click",()=>openInstr(b.dataset.instr)));
 $("#instrClose").addEventListener("click",closeInstr);
